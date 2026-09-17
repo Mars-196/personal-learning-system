@@ -24,6 +24,7 @@ export function TaskItem({
   const done = task.status === 'done';
   const [isRemoving, setIsRemoving] = useState(false);
 
+  /** 触发删除动画（300ms）后再调用 onDelete，避免动画被瞬间中断 */
   const handleDelete = () => {
     setIsRemoving(true);
     setTimeout(() => {
