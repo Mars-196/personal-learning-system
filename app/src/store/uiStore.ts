@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    UI Store（Zustand）
    管理全局界面状态：当前查看日期、弹窗、消息提示
    ============================================================ */
@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { today } from '../utils';
 
 /** 弹窗类型 */
-export type ModalType = 'task-form' | 'stage-form' | 'reflection-form' | 'confirm' | null;
+export type ModalType = 'task-form' | 'stage-form' | 'template-picker' | 'confirm' | null;
 
 /** 消息提示 */
 export interface Toast {

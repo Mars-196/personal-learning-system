@@ -11,6 +11,7 @@ import { backupService } from '../services';
 import { useTaskStore } from '../store/taskStore';
 import { useStageStore } from '../store/stageStore';
 import { useReflectionStore } from '../store/reflectionStore';
+import { useTemplateStore } from '../store/templateStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useUIStore } from '../store/uiStore';
 import { startNotificationChecker, stopNotificationChecker, startDailySummary, stopDailySummary, sendBrowserNotification, countdown } from '../utils';
@@ -26,6 +27,8 @@ export function SettingsPage() {
   const loadStages = useStageStore((s) => s.load);
   const reflections = useReflectionStore((s) => s.reflections);
   const loadReflections = useReflectionStore((s) => s.load);
+  const templates = useTemplateStore((s) => s.templates);
+  const loadTemplates = useTemplateStore((s) => s.load);
 
   const permission = useNotificationStore((s) => s.permission);
   const requestPermission = useNotificationStore((s) => s.requestPermission);
@@ -38,7 +41,7 @@ export function SettingsPage() {
   const [dailySummaryEnabled, setDailySummaryEnabled] = useState(false);
 
   const refreshAll = async () => {
-    await Promise.all([loadAllTasks(), loadStages(), loadReflections(), loadNotifications()]);
+    await Promise.all([loadAllTasks(), loadStages(), loadReflections(), loadTemplates(), loadNotifications()]);
   };
 
   /** 逾期任务数量：截止日期已过且未完成 */
@@ -228,6 +231,7 @@ export function SettingsPage() {
             </li>
             <li><strong>阶段</strong><span>{stages.length} 个</span></li>
             <li><strong>笔记</strong><span>{reflections.length} 条</span></li>
+            <li><strong>模板</strong><span>{templates.length} 个</span></li>
             <li><strong>存储位置</strong><span>浏览器 IndexedDB（本地）</span></li>
           </ul>
         </div>

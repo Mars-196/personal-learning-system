@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Service 的 HTTP API 实现模板（后期接入后端时启用）
    ============================================================
    使用步骤：
@@ -177,6 +177,10 @@ export const apiReflectionService: ReflectionService = {
 
   async getByDate(date): Promise<Reflection[]> {
     return fetchWithAuth<Reflection[]>(`/reflections?date=${date}`);
+  },
+
+  async getByCategory(category): Promise<Reflection[]> {
+    return fetchWithAuth<Reflection[]>(`/reflections?category=${encodeURIComponent(category)}`);
   },
 
   async create(input: ReflectionInput): Promise<Reflection> {

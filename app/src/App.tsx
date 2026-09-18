@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    应用主框架：导航 + 页面切换 + 全局弹窗
    使用轻量 tab 切换；页面增多后可替换为 react-router-dom
    ============================================================ */
@@ -10,7 +10,7 @@ import { ReflectionsPage } from './pages/ReflectionsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { StageFormModal } from './components/StageFormModal';
-import { ReflectionFormModal } from './components/ReflectionFormModal';
+import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ToastContainer } from './components/ToastContainer';
 import { useUIStore } from './store/uiStore';
@@ -99,7 +99,7 @@ export default function App() {
       {/* 全局弹窗与提示 */}
       <TaskFormModal />
       <StageFormModal />
-      <ReflectionFormModal />
+      <TemplatePickerModal />
       <ConfirmDialog />
       <ToastContainer />
     </div>

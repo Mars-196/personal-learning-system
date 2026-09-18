@@ -106,7 +106,7 @@ export interface StageNode extends Stage {
   taskDone: number;
 }
 
-/** ---------- 笔记（后续功能预留） ---------- */
+/** ---------- 笔记（每日复盘 → 通用笔记） ---------- */
 export interface Reflection {
   id: string;
   /** 关联日期 YYYY-MM-DD */
@@ -115,6 +115,8 @@ export interface Reflection {
   title: string;
   /** 笔记正文 */
   content: string;
+  /** 笔记分类（用户自定义，空字符串 = 未分类） */
+  category: string;
   /** 关联的任务 id 列表 */
   relatedTaskIds: string[];
   createdAt: number;
@@ -122,6 +124,21 @@ export interface Reflection {
 }
 
 export type ReflectionInput = Omit<Reflection, 'id' | 'createdAt' | 'updatedAt'>;
+
+/** ---------- 笔记模板 ---------- */
+export interface NoteTemplate {
+  id: string;
+  /** 模板名称，如「每日复盘」「读书笔记」 */
+  name: string;
+  /** 关联分类 */
+  category: string;
+  /** 模板正文骨架 */
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type NoteTemplateInput = Omit<NoteTemplate, 'id' | 'createdAt' | 'updatedAt'>;
 
 /** ---------- 统计信息 ---------- */
 export interface TaskStats {
@@ -140,6 +157,7 @@ export interface BackupData {
   tasks: Task[];
   stages: Stage[];
   reflections: Reflection[];
+  templates: NoteTemplate[];
 }
 
 /** ---------- 通知提醒 ---------- */

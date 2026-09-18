@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Service 接口定义
    上层组件与 store 只依赖这些接口，不关心底层是 IndexedDB 还是 HTTP。
    接入后端时：实现 api.ts 版本 → 在 services/index.ts 切换一行导出。
@@ -11,6 +11,8 @@ import type {
   StageInput,
   Reflection,
   ReflectionInput,
+  NoteTemplate,
+  NoteTemplateInput,
   BackupData,
   NotificationReminder,
   NotificationReminderInput,
@@ -52,12 +54,24 @@ export interface StageService {
   clear(): Promise<void>;
 }
 
-/** 笔记服务（后续功能预留） */
+/** 笔记服务 */
 export interface ReflectionService {
   getAll(): Promise<Reflection[]>;
   getByDate(date: string): Promise<Reflection[]>;
+  /** 按分类筛选笔记，空字符串表示未分类 */
+  getByCategory(category: string): Promise<Reflection[]>;
   create(input: ReflectionInput): Promise<Reflection>;
   update(id: string, patch: Partial<ReflectionInput>): Promise<Reflection | undefined>;
+  remove(id: string): Promise<void>;
+  clear(): Promise<void>;
+}
+
+/** 笔记模板服务 */
+export interface TemplateService {
+  getAll(): Promise<NoteTemplate[]>;
+  getByCategory(category: string): Promise<NoteTemplate[]>;
+  create(input: NoteTemplateInput): Promise<NoteTemplate>;
+  update(id: string, patch: Partial<NoteTemplateInput>): Promise<NoteTemplate | undefined>;
   remove(id: string): Promise<void>;
   clear(): Promise<void>;
 }

@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Service 切换入口 —— 后期接后端只改这一个文件
    ============================================================
 
@@ -14,20 +14,23 @@ import {
   indexedDBTaskService,
   indexedDBStageService,
   indexedDBReflectionService,
+  indexedDBTemplateService,
   indexedDBBackupService,
   indexedDBNotificationService,
 } from './storage/indexeddb';
 
-// import { apiTaskService, apiStageService, apiReflectionService, apiBackupService, apiNotificationService } from './storage/api';
+// import { apiTaskService, apiStageService, apiReflectionService, apiTemplateService, apiBackupService, apiNotificationService } from './storage/api';
 
 export const taskService = indexedDBTaskService;
 export const stageService = indexedDBStageService;
 export const reflectionService = indexedDBReflectionService;
+export const templateService = indexedDBTemplateService;
 export const backupService = indexedDBBackupService;
 export const notificationService = indexedDBNotificationService;
 
 // export const taskService = apiTaskService;
 // export const stageService = apiStageService;
 // export const reflectionService = apiReflectionService;
+// export const templateService = apiTemplateService;
 // export const backupService = apiBackupService;
 // export const notificationService = apiNotificationService;

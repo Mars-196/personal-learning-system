@@ -1,15 +1,16 @@
-﻿/* ============================================================
+/* ============================================================
    Service 的 IndexedDB 实现
    当前阶段使用；接入后端后由 api.ts 替换，本文件保留即可。
    ============================================================ */
 
 import { db } from '../../db/database';
 import type {
-  Task, TaskInput, Stage, StageInput, Reflection, ReflectionInput, BackupData,
+  Task, TaskInput, Stage, StageInput, Reflection, ReflectionInput,
+  NoteTemplate, NoteTemplateInput, BackupData,
   NotificationReminder, NotificationReminderInput,
 } from '../../types';
 import type {
-  TaskService, StageService, ReflectionService, BackupService, TaskQuery, NotificationService,
+  TaskService, StageService, ReflectionService, TemplateService, BackupService, TaskQuery, NotificationService,
 } from '../interfaces';
 
 /** 生成唯一 id */
@@ -158,6 +159,10 @@ export const indexedDBReflectionService: ReflectionService = {
     return db.reflections.where('date').equals(date).toArray();
   },
 
+  async getByCategory(category) {
+    return db.reflections.where('category').equals(category).toArray();
+  },
+
   async create(input: ReflectionInput) {
     const now = Date.now();
     const item: Reflection = { ...input, id: uid('refl'), createdAt: now, updatedAt: now };
@@ -183,31 +188,71 @@ export const indexedDBReflectionService: ReflectionService = {
 };
 
 /* ------------------------------------------------------------ */
+/* NoteTemplate（笔记模板）                                      */
+/* ------------------------------------------------------------ */
+
+export const indexedDBTemplateService: TemplateService = {
+  async getAll() {
+    const list = await db.templates.toArray();
+    return list.sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+
+  async getByCategory(category) {
+    return db.templates.where('category').equals(category).toArray();
+  },
+
+  async create(input: NoteTemplateInput) {
+    const now = Date.now();
+    const item: NoteTemplate = { ...input, id: uid('tpl'), createdAt: now, updatedAt: now };
+    await db.templates.add(item);
+    return item;
+  },
+
+  async update(id, patch: Partial<NoteTemplateInput>) {
+    const existing = await db.templates.get(id);
+    if (!existing) return undefined;
+    const updated: NoteTemplate = { ...existing, ...patch, id, updatedAt: Date.now() };
+    await db.templates.put(updated);
+    return updated;
+  },
+
+  async remove(id) {
+    await db.templates.delete(id);
+  },
+
+  async clear() {
+    await db.templates.clear();
+  },
+};
+
+/* ------------------------------------------------------------ */
 /* Backup                                                        */
 /* ------------------------------------------------------------ */
 
 export const indexedDBBackupService: BackupService = {
   async exportAll(): Promise<BackupData> {
-    const [tasks, stages, reflections] = await Promise.all([
+    const [tasks, stages, reflections, templates] = await Promise.all([
       db.tasks.toArray(),
       db.stages.toArray(),
       db.reflections.toArray(),
+      db.templates.toArray(),
     ]);
     return {
       version: 1,
       exportedAt: new Date().toISOString(),
       app: 'personal-reflection-system',
-      tasks, stages, reflections,
+      tasks, stages, reflections, templates,
     };
   },
 
   async importAll(data, mode) {
     if (mode === 'replace') {
-      await Promise.all([db.tasks.clear(), db.stages.clear(), db.reflections.clear()]);
+      await Promise.all([db.tasks.clear(), db.stages.clear(), db.reflections.clear(), db.templates.clear()]);
       await Promise.all([
         db.tasks.bulkAdd(data.tasks ?? []),
         db.stages.bulkAdd(data.stages ?? []),
         db.reflections.bulkAdd(data.reflections ?? []),
+        db.templates.bulkAdd((data as BackupData & { templates?: NoteTemplate[] }).templates ?? []),
       ]);
       return {
         tasks: data.tasks?.length ?? 0,
@@ -227,6 +272,10 @@ export const indexedDBBackupService: BackupService = {
     }
     for (const r of data.reflections ?? []) {
       if (!(await db.reflections.get(r.id))) { await db.reflections.add(r); result.reflections++; }
+    }
+    const tpls = (data as BackupData & { templates?: NoteTemplate[] }).templates ?? [];
+    for (const tpl of tpls) {
+      if (!(await db.templates.get(tpl.id))) { await db.templates.add(tpl); }
     }
 
     return result;
