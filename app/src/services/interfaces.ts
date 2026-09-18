@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    Service 接口定义
    上层组件与 store 只依赖这些接口，不关心底层是 IndexedDB 还是 HTTP。
    接入后端时：实现 api.ts 版本 → 在 services/index.ts 切换一行导出。
@@ -52,7 +52,7 @@ export interface StageService {
   clear(): Promise<void>;
 }
 
-/** 反思服务（后续功能预留） */
+/** 笔记服务（后续功能预留） */
 export interface ReflectionService {
   getAll(): Promise<Reflection[]>;
   getByDate(date: string): Promise<Reflection[]>;

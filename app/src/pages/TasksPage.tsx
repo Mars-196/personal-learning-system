@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    任务栏页面
    - 顶部统计（已完成 / 未完成 / 总数 / 完成率）
    - 日期切换：查看不同日期的任务
@@ -101,7 +101,7 @@ export function TasksPage() {
   const handleToggle = async (id: string) => {
     const target = allTasks.find((t) => t.id === id);
     await toggleTask(id);
-    if (target?.status === 'pending') pushToast('已完成，记得写条反思 📝');
+    if (target?.status === 'pending') pushToast('已完成，记得写条笔记 📝');
   };
 
   const handleDelete = (task: Task) => {
@@ -121,7 +121,7 @@ export function TasksPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">任务栏</h1>
-          <p className="page-subtitle">管理每日待办，完成后记得回顾反思</p>
+          <p className="page-subtitle">管理每日待办，完成后记得回顾笔记</p>
         </div>
         <button
           className="btn btn--primary"

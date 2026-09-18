@@ -1,4 +1,4 @@
-/* File System Access API 类型声明 —— Chrome 86+ / Edge 86+ / Opera 72+ */
+﻿/* File System Access API 类型声明 —— Chrome 86+ / Edge 86+ / Opera 72+ */
 interface FileSystemFileHandle {
   readonly name: string;
   createWritable(): Promise<FileSystemWritableFileStream>;

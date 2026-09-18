@@ -1,5 +1,5 @@
-/* ============================================================
-   个人反思系统 —— 全局数据模型
+﻿/* ============================================================
+   个人成长系统 —— 全局数据模型
    前后端共用类型定义，接入 API 后可直接作为请求/响应类型
    ============================================================ */
 
@@ -87,7 +87,7 @@ export interface Stage {
   endDate: string;
   /** 父阶段 id，null 表示顶级阶段 */
   parentId: string | null;
-  /** 阶段反思笔记（可选，阶段性复盘/总结） */
+  /** 阶段笔记（可选，阶段性复盘/总结） */
   reflection?: string;
   createdAt: number;
   updatedAt: number;
@@ -106,14 +106,14 @@ export interface StageNode extends Stage {
   taskDone: number;
 }
 
-/** ---------- 反思（后续功能预留） ---------- */
+/** ---------- 笔记（后续功能预留） ---------- */
 export interface Reflection {
   id: string;
   /** 关联日期 YYYY-MM-DD */
   date: string;
-  /** 反思标题 */
+  /** 笔记标题 */
   title: string;
-  /** 反思正文 */
+  /** 笔记正文 */
   content: string;
   /** 关联的任务 id 列表 */
   relatedTaskIds: string[];

@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    Service 的 HTTP API 实现模板（后期接入后端时启用）
    ============================================================
    使用步骤：
@@ -23,12 +23,12 @@
    - DELETE /api/stages/:id - 删除阶段
    - DELETE /api/stages - 清空所有阶段
 
-   - GET /api/reflections - 获取反思列表
-   - GET /api/reflections?date=YYYY-MM-DD - 按日期获取反思
-   - POST /api/reflections - 创建反思
-   - PATCH /api/reflections/:id - 更新反思
-   - DELETE /api/reflections/:id - 删除反思
-   - DELETE /api/reflections - 清空所有反思
+   - GET /api/reflections - 获取笔记列表
+   - GET /api/reflections?date=YYYY-MM-DD - 按日期获取笔记
+   - POST /api/reflections - 创建笔记
+   - PATCH /api/reflections/:id - 更新笔记
+   - DELETE /api/reflections/:id - 删除笔记
+   - DELETE /api/reflections - 清空所有笔记
 
    - GET /api/backup/export - 导出备份数据
    - POST /api/backup/import - 导入备份数据

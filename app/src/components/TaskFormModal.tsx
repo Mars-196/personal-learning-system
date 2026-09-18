@@ -47,7 +47,7 @@ export function TaskFormModal() {
   const pushToast = useUIStore((s) => s.pushToast);
   const currentDate = useUIStore((s) => s.currentDate);
 
-  const tasks = useTaskStore((s) => s.tasks);
+  const tasks = useTaskStore((s) => s.allTasks);
   const createTask = useTaskStore((s) => s.createTask);
   const updateTask = useTaskStore((s) => s.updateTask);
   const stages = useStageStore((s) => s.stages);

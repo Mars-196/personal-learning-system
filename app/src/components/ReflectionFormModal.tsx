@@ -1,5 +1,5 @@
-/* ============================================================
-   反思表单弹窗：新建 / 编辑
+﻿/* ============================================================
+   笔记表单弹窗：新建 / 编辑
    字段：日期、标题、正文、关联任务
    ============================================================ */
 
@@ -78,7 +78,7 @@ export function ReflectionFormModal() {
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (!date) next.date = '请选择日期';
-    if (!content.trim()) next.content = '请写下你的反思内容';
+    if (!content.trim()) next.content = '请写下你的笔记内容';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -89,17 +89,17 @@ export function ReflectionFormModal() {
     try {
       const payload: ReflectionInput = {
         date,
-        title: title.trim() || '每日反思',
+        title: title.trim() || '每日笔记',
         content: content.trim(),
         relatedTaskIds,
       };
 
       if (isEdit && editingId) {
         await updateReflection(editingId, payload);
-        pushToast('反思已更新');
+        pushToast('笔记已更新');
       } else {
         await createReflection(payload);
-        pushToast('反思已保存');
+        pushToast('笔记已保存');
       }
       closeModal();
     } catch {
@@ -114,7 +114,7 @@ export function ReflectionFormModal() {
   return (
     <Modal
       open={open}
-      title={isEdit ? '编辑反思' : '写反思'}
+      title={isEdit ? '编辑笔记' : '写笔记'}
       onClose={busy ? () => undefined : closeModal}
       footer={
         <>
@@ -122,7 +122,7 @@ export function ReflectionFormModal() {
             取消
           </button>
           <button className="btn btn--primary" onClick={handleSubmit} disabled={busy} type="button">
-            {busy ? '保存中…' : '保存反思'}
+            {busy ? '保存中…' : '保存笔记'}
           </button>
         </>
       }
@@ -130,7 +130,7 @@ export function ReflectionFormModal() {
       {/* 日期 */}
       <div className="field">
         <label className="field__label" htmlFor="rf-date">
-          反思日期<span className="field__required">*</span>
+          笔记日期<span className="field__required">*</span>
         </label>
         <input
           id="rf-date"
@@ -158,7 +158,7 @@ export function ReflectionFormModal() {
       {/* 正文 */}
       <div className="field">
         <label className="field__label" htmlFor="rf-content">
-          反思内容<span className="field__required">*</span>
+          笔记内容<span className="field__required">*</span>
         </label>
         <textarea
           id="rf-content"
@@ -236,7 +236,7 @@ export function ReflectionFormModal() {
             )}
           </div>
         )}
-        <div className="field__hint">关联任务后，反思与任务形成对应关系，便于复盘</div>
+        <div className="field__hint">关联任务后，笔记与任务形成对应关系，便于复盘</div>
       </div>
     </Modal>
   );

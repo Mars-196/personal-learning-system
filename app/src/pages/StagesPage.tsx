@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    任务阶段页面
    - 大阶段包含 n 个子阶段（树形展示）
    - 显示重要程度、起止日期、倒计时、任务进度
@@ -89,7 +89,7 @@ export function StagesPage() {
 
             {node.reflection && (
               <div className="stage-card__reflection">
-                <span className="stage-card__reflection-label">反思笔记</span>
+                <span className="stage-card__reflection-label">笔记</span>
                 <p>{node.reflection}</p>
               </div>
             )}

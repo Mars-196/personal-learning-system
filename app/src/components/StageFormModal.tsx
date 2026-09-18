@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    阶段表单弹窗：新建 / 编辑
    字段：名称、描述、重要程度、起止日期、父阶段
    ============================================================ */
@@ -248,16 +248,16 @@ export function StageFormModal() {
         <div className="field__hint">一个大阶段可包含多个子阶段</div>
       </div>
 
-      {/* 反思笔记 */}
+      {/* 笔记 */}
       <div className="field">
         <label className="field__label" htmlFor="sf-reflection">
-          阶段反思笔记
+          阶段笔记
           <span className="field__hint" style={{ marginLeft: 6, display: 'inline' }}>（选填）</span>
         </label>
         <textarea
           id="sf-reflection"
           className="textarea"
-          placeholder="阶段结束后可以记下复盘、收获、反思…"
+          placeholder="阶段结束后可以记下复盘、收获、笔记…"
           value={form.reflection}
           onChange={(e) => set('reflection', e.target.value)}
           style={{ minHeight: 100 }}

@@ -1,5 +1,5 @@
-/* ============================================================
-   个人反思系统 —— Aceternity UI 风格
+﻿/* ============================================================
+   个人成长系统 —— Aceternity UI 风格
    渐变 / 玻璃 / 噪点 / 非线性动画 / 不对称
    ============================================================ */
 
@@ -869,6 +869,109 @@ a:hover { text-decoration: underline; }
 
 .setting-row__label { font-size: 14px; font-weight: 700; }
 .setting-row__desc { font-size: 12px; color: var(--c-text-muted); margin-top: 2px; }
+
+/* SECTION: notification-permission-banner —— 三态可视化横幅 */
+.notif-banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  isolation: isolate;
+  transition: background .4s var(--ease-out), box-shadow .4s var(--ease-out), border-color .4s var(--ease-out);
+}
+
+/* 噪点纹理底层 —— 避免纯平背景 */
+.notif-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: .35;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.notif-banner--default {
+  background: linear-gradient(135deg, rgba(249, 115, 22, .12) 0%, rgba(6, 182, 212, .12) 100%);
+  border: 1px solid rgba(249, 115, 22, .22);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset, var(--sh-md);
+}
+
+.notif-banner--granted {
+  background: linear-gradient(135deg, rgba(16, 185, 129, .12) 0%, rgba(6, 182, 212, .10) 100%);
+  border: 1px solid rgba(16, 185, 129, .25);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset, var(--sh-sm);
+}
+
+.notif-banner--denied {
+  background: linear-gradient(135deg, rgba(245, 158, 11, .10) 0%, rgba(239, 68, 68, .08) 100%);
+  border: 1px solid rgba(245, 158, 11, .3);
+  box-shadow: var(--sh-sm);
+}
+
+.notif-banner__icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .7);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+}
+.notif-banner--default .notif-banner__icon { color: var(--c-primary); }
+.notif-banner--granted .notif-banner__icon { color: var(--c-success); }
+.notif-banner--denied  .notif-banner__icon { color: var(--c-warning); }
+
+.notif-banner__title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: var(--c-text);
+}
+.notif-banner__desc {
+  font-size: 12.5px;
+  color: var(--c-text-secondary);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+.notif-banner__hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-warning);
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  background: var(--c-warning-soft);
+  border: 1px solid rgba(245, 158, 11, .25);
+  white-space: nowrap;
+}
+
+.notif-banner__action .btn--primary {
+  background: var(--c-gradient);
+  box-shadow: var(--sh-glow-primary);
+}
+
+/* 响应式：窄屏回退为单列 */
+@media (max-width: 480px) {
+  .notif-banner {
+    grid-template-columns: 36px 1fr;
+    grid-template-rows: auto auto;
+    gap: 10px 12px;
+  }
+  .notif-banner__icon { width: 36px; height: 36px; }
+  .notif-banner__action {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+  .notif-banner__action .btn { width: 100%; }
+}
 
 .info-list { font-size: 13px; color: var(--c-text-secondary); }
 .info-list li { padding: 5px 0; display: flex; gap: 8px; flex-wrap: wrap; }

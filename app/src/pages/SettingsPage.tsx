@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    设置页面：数据备份与安全说明
    - 导出全部数据为 JSON 文件（防丢失）
    - 导入 JSON 备份（合并 / 覆盖两种模式）
@@ -13,7 +13,7 @@ import { useStageStore } from '../store/stageStore';
 import { useReflectionStore } from '../store/reflectionStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useUIStore } from '../store/uiStore';
-import { startNotificationChecker, stopNotificationChecker, startDailySummary, stopDailySummary } from '../utils';
+import { startNotificationChecker, stopNotificationChecker, startDailySummary, stopDailySummary, sendBrowserNotification } from '../utils';
 import type { BackupData } from '../types';
 
 export function SettingsPage() {
@@ -62,6 +62,14 @@ export function SettingsPage() {
     }
   };
 
+  const handleTestNotification = () => {
+    sendBrowserNotification('测试通知 · 个人成长系统', {
+      body: '看到这条，说明权限没问题。',
+      icon: '/icon-192.png',
+    });
+    pushToast('已发送测试通知');
+  };
+
   const toggleNotificationChecker = () => {
     if (notificationEnabled) {
       stopNotificationChecker();
@@ -91,7 +99,7 @@ export function SettingsPage() {
       const data = await backupService.exportAll();
       const jsonText = JSON.stringify(data, null, 2);
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      const fileName = `反思系统备份_${stamp}.json`;
+      const fileName = `笔记系统备份_${stamp}.json`;
 
       // 优先使用 File System Access API（可选择保存位置）
       // Chrome 86+ / Edge 86+ / Opera 72+ 支持
@@ -169,7 +177,7 @@ export function SettingsPage() {
         const result = await backupService.importAll(pendingData, mode);
         await refreshAll();
         pushToast(
-          `导入完成：任务 ${result.tasks} 条，阶段 ${result.stages} 个，反思 ${result.reflections} 条`,
+          `导入完成：任务 ${result.tasks} 条，阶段 ${result.stages} 个，笔记 ${result.reflections} 条`,
         );
       } catch {
         pushToast('导入失败，请重试', 'error');
@@ -207,7 +215,7 @@ export function SettingsPage() {
           <ul className="info-list">
             <li><strong>任务</strong><span>{allTasks.length} 条</span></li>
             <li><strong>阶段</strong><span>{stages.length} 个</span></li>
-            <li><strong>反思</strong><span>{reflections.length} 条</span></li>
+            <li><strong>笔记</strong><span>{reflections.length} 条</span></li>
             <li><strong>存储位置</strong><span>浏览器 IndexedDB（本地）</span></li>
           </ul>
         </div>
@@ -216,23 +224,69 @@ export function SettingsPage() {
         <div className="card card--pad">
           <div className="card-title">🔔 通知设置</div>
 
-          <div className="setting-row">
-            <div>
-              <div className="setting-row__label">通知权限</div>
-              <div className="setting-row__desc">
-                当前状态: {permission === 'granted' ? '已授予' : permission === 'denied' ? '已拒绝' : '未设置'}
-              </div>
+          {/* 一键通知权限横幅 —— 三态可视化 */}
+          <div className={`notif-banner notif-banner--${permission}`}>
+            <div className="notif-banner__icon" aria-hidden="true">
+              {permission === 'granted' ? (
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12l4 4 10-10" />
+                </svg>
+              ) : permission === 'denied' ? (
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3l9 16H3z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <circle cx="12" cy="17" r="0.8" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.5 21a1.5 1.5 0 01-3 0" />
+                </svg>
+              )}
             </div>
-            {permission !== 'granted' && (
-              <button
-                className="btn btn--primary btn--sm"
-                onClick={handleNotificationPermission}
-                disabled={busy}
-                type="button"
-              >
-                授予权限
-              </button>
-            )}
+
+            <div className="notif-banner__body">
+              {permission === 'granted' ? (
+                <>
+                  <div className="notif-banner__title">通知已开启</div>
+                  <p className="notif-banner__desc">任务完成、提醒到点都会弹出来。</p>
+                </>
+              ) : permission === 'denied' ? (
+                <>
+                  <div className="notif-banner__title">权限被拒了</div>
+                  <p className="notif-banner__desc">点地址栏左边小锁，把通知改成"允许"。</p>
+                </>
+              ) : (
+                <>
+                  <div className="notif-banner__title">开启桌面提醒</div>
+                  <p className="notif-banner__desc">任务到点、阶段快到期，浏览器会喊你。</p>
+                </>
+              )}
+            </div>
+
+            <div className="notif-banner__action">
+              {permission === 'granted' ? (
+                <button
+                  className="btn btn--ghost btn--sm"
+                  onClick={handleTestNotification}
+                  disabled={busy}
+                  type="button"
+                >
+                  试发一条
+                </button>
+              ) : permission === 'denied' ? (
+                <span className="notif-banner__hint">需手动开启</span>
+              ) : (
+                <button
+                  className="btn btn--primary btn--sm"
+                  onClick={handleNotificationPermission}
+                  disabled={busy}
+                  type="button"
+                >
+                  一键开启
+                </button>
+              )}
+            </div>
           </div>
 
           {permission === 'granted' && (
@@ -340,7 +394,7 @@ export function SettingsPage() {
                 <li><strong>导出时间</strong><span>{pendingData.exportedAt ?? '未知'}</span></li>
                 <li><strong>任务</strong><span>{pendingData.tasks.length} 条</span></li>
                 <li><strong>阶段</strong><span>{pendingData.stages.length} 个</span></li>
-                <li><strong>反思</strong><span>{(pendingData.reflections ?? []).length} 条</span></li>
+                <li><strong>笔记</strong><span>{(pendingData.reflections ?? []).length} 条</span></li>
               </ul>
               <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                 <button

@@ -1,7 +1,7 @@
-/* ============================================================
-   反思页面（RPD「后续可做：每日反思总结」）
-   - 按日期浏览反思
-   - 新建 / 编辑 / 删除反思
+﻿/* ============================================================
+   笔记页面（RPD「后续可做：每日笔记总结」）
+   - 按日期浏览笔记
+   - 新建 / 编辑 / 删除笔记
    - 显示关联任务
    ============================================================ */
 
@@ -40,12 +40,12 @@ export function ReflectionsPage() {
 
   const handleDelete = (id: string, title: string) => {
     askConfirm({
-      title: '删除反思',
-      message: `确定要删除反思「${title}」吗？删除后无法恢复。`,
+      title: '删除笔记',
+      message: `确定要删除笔记「${title}」吗？删除后无法恢复。`,
       confirmText: '删除',
       onConfirm: async () => {
         await deleteReflection(id);
-        pushToast('反思已删除');
+        pushToast('笔记已删除');
       },
     });
   };
@@ -54,7 +54,7 @@ export function ReflectionsPage() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title">每日反思</h1>
+          <h1 className="page-title">每日笔记</h1>
           <p className="page-subtitle">记录每天的复盘与心得，与任务关联回顾</p>
         </div>
         <button
@@ -62,7 +62,7 @@ export function ReflectionsPage() {
           onClick={() => openModal('reflection-form')}
           type="button"
         >
-          + 写反思
+          + 写笔记
         </button>
       </div>
 
@@ -73,7 +73,7 @@ export function ReflectionsPage() {
           className={`filter-chip${!dateFilter ? ' is-active' : ''}`}
           onClick={() => setDateFilter('')}
         >
-          全部反思
+          全部笔记
         </button>
         <input
           type="date"
@@ -81,7 +81,7 @@ export function ReflectionsPage() {
           style={{ width: 'auto', padding: '5px 10px', fontSize: 13 }}
           value={dateFilter}
           onChange={(e) => setDateFilter(e.target.value)}
-          aria-label="按日期筛选反思"
+          aria-label="按日期筛选笔记"
         />
         {dateFilter && (
           <button
@@ -98,10 +98,10 @@ export function ReflectionsPage() {
         <div className="card">
           <EmptyState
             icon="📝"
-            title={dateFilter ? '这一天还没有反思' : '还没有写过反思'}
+            title={dateFilter ? '这一天还没有笔记' : '还没有写过笔记'}
             text={
               dateFilter
-                ? '换个日期看看，或为这一天补写一条反思'
+                ? '换个日期看看，或为这一天补写一条笔记'
                 : '完成任务后写下复盘：做得好的地方、可以改进的地方'
             }
             action={
@@ -110,7 +110,7 @@ export function ReflectionsPage() {
                 onClick={() => openModal('reflection-form')}
                 type="button"
               >
-                + 写反思
+                + 写笔记
               </button>
             }
           />
@@ -142,7 +142,7 @@ export function ReflectionsPage() {
                 <button
                   className="icon-btn"
                   onClick={() => openModal('reflection-form', r.id)}
-                  aria-label={`编辑反思「${r.title}」`}
+                  aria-label={`编辑笔记「${r.title}」`}
                   title="编辑"
                   type="button"
                 >
@@ -151,7 +151,7 @@ export function ReflectionsPage() {
                 <button
                   className="icon-btn icon-btn--danger"
                   onClick={() => handleDelete(r.id, r.title)}
-                  aria-label={`删除反思「${r.title}」`}
+                  aria-label={`删除笔记「${r.title}」`}
                   title="删除"
                   type="button"
                 >
