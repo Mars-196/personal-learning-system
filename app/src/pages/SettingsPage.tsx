@@ -6,14 +6,14 @@
    - 通知权限管理
    ============================================================ */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { backupService } from '../services';
 import { useTaskStore } from '../store/taskStore';
 import { useStageStore } from '../store/stageStore';
 import { useReflectionStore } from '../store/reflectionStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useUIStore } from '../store/uiStore';
-import { startNotificationChecker, stopNotificationChecker, startDailySummary, stopDailySummary, sendBrowserNotification } from '../utils';
+import { startNotificationChecker, stopNotificationChecker, startDailySummary, stopDailySummary, sendBrowserNotification, countdown } from '../utils';
 import type { BackupData } from '../types';
 
 export function SettingsPage() {
@@ -40,6 +40,12 @@ export function SettingsPage() {
   const refreshAll = async () => {
     await Promise.all([loadAllTasks(), loadStages(), loadReflections(), loadNotifications()]);
   };
+
+  /** 逾期任务数量：截止日期已过且未完成 */
+  const overdueCount = useMemo(
+    () => allTasks.filter((t) => countdown(t.endDate) < 0 && t.status !== 'done').length,
+    [allTasks],
+  );
 
   useEffect(() => {
     refreshAll();
@@ -214,6 +220,12 @@ export function SettingsPage() {
           <div className="card-title">📊 当前数据</div>
           <ul className="info-list">
             <li><strong>任务</strong><span>{allTasks.length} 条</span></li>
+            <li>
+              <strong>逾期任务</strong>
+              <span style={{ color: overdueCount > 0 ? 'var(--c-danger)' : 'var(--c-text-muted)', fontWeight: overdueCount > 0 ? 700 : 400 }}>
+                {overdueCount} 条
+              </span>
+            </li>
             <li><strong>阶段</strong><span>{stages.length} 个</span></li>
             <li><strong>笔记</strong><span>{reflections.length} 条</span></li>
             <li><strong>存储位置</strong><span>浏览器 IndexedDB（本地）</span></li>
