@@ -87,6 +87,13 @@ export function StagesPage() {
               <div className="stage-card__desc">{node.description}</div>
             )}
 
+            {node.reflection && (
+              <div className="stage-card__reflection">
+                <span className="stage-card__reflection-label">反思笔记</span>
+                <p>{node.reflection}</p>
+              </div>
+            )}
+
             <div className="stage-card__meta">
               <span className="badge badge--date">
                 {formatDateCN(node.startDate)} → {formatDateCN(node.endDate)}

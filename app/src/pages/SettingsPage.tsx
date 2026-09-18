@@ -89,15 +89,47 @@ export function SettingsPage() {
     setBusy(true);
     try {
       const data = await backupService.exportAll();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const jsonText = JSON.stringify(data, null, 2);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const fileName = `反思系统备份_${stamp}.json`;
+
+      // 优先使用 File System Access API（可选择保存位置）
+      // Chrome 86+ / Edge 86+ / Opera 72+ 支持
+      if ('showSaveFilePicker' in window) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [
+              {
+                description: 'JSON 备份文件',
+                accept: { 'application/json': ['.json'] },
+              },
+            ],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(jsonText);
+          await writable.close();
+          pushToast(`已导出 ${data.tasks.length} 条任务、${data.stages.length} 个阶段`);
+          return;
+        } catch (err: unknown) {
+          // 用户取消选择（AbortError）—— 不报错，静默返回
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            return;
+          }
+          // 其他异常降级到传统下载方式
+          console.warn('showSaveFilePicker 失败，降级为浏览器下载：', err);
+        }
+      }
+
+      // 降级方案：传统 <a download>（存到默认下载目录）
+      const blob = new Blob([jsonText], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      a.download = `反思系统备份_${stamp}.json`;
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
-      pushToast(`已导出 ${data.tasks.length} 条任务、${data.stages.length} 个阶段`);
+      pushToast(`已导出 ${data.tasks.length} 条任务、${data.stages.length} 个阶段（存至默认下载目录）`);
     } catch {
       pushToast('导出失败，请重试', 'error');
     } finally {
@@ -259,7 +291,7 @@ export function SettingsPage() {
             <div>
               <div className="setting-row__label">导出备份</div>
               <div className="setting-row__desc">
-                把全部数据导出为 JSON 文件，建议定期备份以防数据丢失
+                把全部数据导出为 JSON 文件，可选择保存位置
               </div>
             </div>
             <button

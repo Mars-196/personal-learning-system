@@ -87,6 +87,8 @@ export interface Stage {
   endDate: string;
   /** 父阶段 id，null 表示顶级阶段 */
   parentId: string | null;
+  /** 阶段反思笔记（可选，阶段性复盘/总结） */
+  reflection?: string;
   createdAt: number;
   updatedAt: number;
 }

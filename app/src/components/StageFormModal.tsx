@@ -19,6 +19,7 @@ interface FormState {
   startDate: string;
   endDate: string;
   parentId: string;
+  reflection: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -28,6 +29,7 @@ const emptyForm = (): FormState => ({
   startDate: today(),
   endDate: today(),
   parentId: '',
+  reflection: '',
 });
 
 export function StageFormModal() {
@@ -60,6 +62,7 @@ export function StageFormModal() {
           startDate: s.startDate,
           endDate: s.endDate,
           parentId: s.parentId ?? '',
+          reflection: s.reflection ?? '',
         });
         return;
       }
@@ -116,6 +119,7 @@ export function StageFormModal() {
         startDate: form.startDate,
         endDate: form.endDate,
         parentId: form.parentId || null,
+        reflection: form.reflection.trim() || undefined,
       };
 
       if (isEdit && editingId) {
@@ -242,6 +246,22 @@ export function StageFormModal() {
         </select>
         {errors.parentId && <div className="field__error">{errors.parentId}</div>}
         <div className="field__hint">一个大阶段可包含多个子阶段</div>
+      </div>
+
+      {/* 反思笔记 */}
+      <div className="field">
+        <label className="field__label" htmlFor="sf-reflection">
+          阶段反思笔记
+          <span className="field__hint" style={{ marginLeft: 6, display: 'inline' }}>（选填）</span>
+        </label>
+        <textarea
+          id="sf-reflection"
+          className="textarea"
+          placeholder="阶段结束后可以记下复盘、收获、反思…"
+          value={form.reflection}
+          onChange={(e) => set('reflection', e.target.value)}
+          style={{ minHeight: 100 }}
+        />
       </div>
     </Modal>
   );
