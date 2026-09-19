@@ -2,35 +2,40 @@
    Service 切换入口 —— 后期接后端只改这一个文件
    ============================================================
 
-   当前：使用 IndexedDB 本地存储实现
+   当前：使用 Supabase 云端存储实现
 
-   接入后端时，把下面几行改为：
-     import { apiTaskService } from './storage/api';
-     ...
-   即可，其余业务代码无需任何改动。
+   回退本地 IndexedDB 时：把下面几行换成 indexeddb 即可。
    ============================================================ */
 
 import {
-  indexedDBTaskService,
-  indexedDBStageService,
-  indexedDBReflectionService,
-  indexedDBTemplateService,
-  indexedDBBackupService,
-  indexedDBNotificationService,
-} from './storage/indexeddb';
+  supabaseTaskService,
+  supabaseStageService,
+  supabaseReflectionService,
+  supabaseTemplateService,
+  supabaseBackupService,
+  supabaseNotificationService,
+} from './storage/supabase';
 
-// import { apiTaskService, apiStageService, apiReflectionService, apiTemplateService, apiBackupService, apiNotificationService } from './storage/api';
+// import {
+//   indexedDBTaskService,
+//   indexedDBStageService,
+//   indexedDBReflectionService,
+//   indexedDBTemplateService,
+//   indexedDBBackupService,
+//   indexedDBNotificationService,
+// } from './storage/indexeddb';
 
-export const taskService = indexedDBTaskService;
-export const stageService = indexedDBStageService;
-export const reflectionService = indexedDBReflectionService;
-export const templateService = indexedDBTemplateService;
-export const backupService = indexedDBBackupService;
-export const notificationService = indexedDBNotificationService;
+export const taskService = supabaseTaskService;
+export const stageService = supabaseStageService;
+export const reflectionService = supabaseReflectionService;
+export const templateService = supabaseTemplateService;
+export const backupService = supabaseBackupService;
+export const notificationService = supabaseNotificationService;
 
-// export const taskService = apiTaskService;
-// export const stageService = apiStageService;
-// export const reflectionService = apiReflectionService;
-// export const templateService = apiTemplateService;
-// export const backupService = apiBackupService;
-// export const notificationService = apiNotificationService;
+// 回退本地版：
+// export const taskService = indexedDBTaskService;
+// export const stageService = indexedDBStageService;
+// export const reflectionService = indexedDBReflectionService;
+// export const templateService = indexedDBTemplateService;
+// export const backupService = indexedDBBackupService;
+// export const notificationService = indexedDBNotificationService;

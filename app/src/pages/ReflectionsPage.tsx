@@ -71,15 +71,8 @@ export function ReflectionsPage() {
   }, [reflections, categoryFilter, search]);
 
   const handleNewNote = () => {
-    // 模板入口：先弹模板选择器
+    // 弹模板选择器，选模板后自动创建笔记
     openModal('template-picker');
-    // 新建笔记后选中"空白"（id=null），右侧编辑器会自动显示空白
-    setSelectedId(null);
-  };
-
-  const handleNewBlank = () => {
-    // 不使用模板，直接空白新建
-    sessionStorage.removeItem('pending-template');
     setSelectedId(null);
   };
 
@@ -105,19 +98,11 @@ export function ReflectionsPage() {
           <div className="notes-sidebar__btns">
             <button
               className="notes-sidebar__btn"
-              onClick={handleNewBlank}
-              title="新建空白笔记"
+              onClick={handleNewNote}
+              title="创建笔记"
               type="button"
             >
               +
-            </button>
-            <button
-              className="notes-sidebar__btn notes-sidebar__btn--with-tpl"
-              onClick={handleNewNote}
-              title="从模板新建笔记"
-              type="button"
-            >
-              📋
             </button>
           </div>
         </div>
@@ -214,14 +199,11 @@ export function ReflectionsPage() {
             <div className="notes-empty__icon">📝</div>
             <div className="notes-empty__title">开始写点什么</div>
             <div className="notes-empty__desc">
-              点左侧 <strong>+</strong> 新建空白笔记，<strong>📋</strong> 从模板新建
+              点左侧 <strong>+</strong> 创建笔记
             </div>
             <div className="notes-empty__btns">
-              <button className="btn btn--primary" onClick={handleNewBlank} type="button">
-                新建空白
-              </button>
-              <button className="btn btn--ghost" onClick={handleNewNote} type="button">
-                从模板新建
+              <button className="btn btn--primary" onClick={handleNewNote} type="button">
+                创建笔记
               </button>
             </div>
           </div>

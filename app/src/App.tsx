@@ -1,6 +1,5 @@
 /* ============================================================
-   应用主框架：导航 + 页面切换 + 全局弹窗
-   使用轻量 tab 切换；页面增多后可替换为 react-router-dom
+   应用主框架：登录守卫 + 导航 + 页面切换 + 全局弹窗
    ============================================================ */
 
 import { useState, useEffect } from 'react';
@@ -8,12 +7,14 @@ import { TasksPage } from './pages/TasksPage';
 import { StagesPage } from './pages/StagesPage';
 import { ReflectionsPage } from './pages/ReflectionsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { LoginPage } from './pages/LoginPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { StageFormModal } from './components/StageFormModal';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ToastContainer } from './components/ToastContainer';
 import { useUIStore } from './store/uiStore';
+import { useAuthStore } from './store/authStore';
 
 type Tab = 'tasks' | 'stages' | 'reflections' | 'settings';
 
@@ -28,36 +29,54 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('tasks');
   const openModal = useUIStore((s) => s.openModal);
 
+  // 登录态
+  const userId = useAuthStore((s) => s.userId);
+  const loading = useAuthStore((s) => s.loading);
+  const signOut = useAuthStore((s) => s.signOut);
+
+  // 应用启动时建立 auth 订阅
+  useEffect(() => {
+    const unsub = useAuthStore.getState().init();
+    return () => unsub?.();
+  }, []);
+
   // 键盘快捷键支持
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 如果在输入框、文本域或选择框中，不触发快捷键
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
-        return;
-      }
-
-      // 数字键切换页面
+      // 输入框、文本域、下拉框、contentEditable 编辑器内不触发快捷键
+      const isEditable =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+      if (isEditable) return;
       if (e.key === '1') setTab('tasks');
       if (e.key === '2') setTab('stages');
       if (e.key === '3') setTab('reflections');
       if (e.key === '4') setTab('settings');
-
-      // N键新建任务
-      if (e.key === 'n' || e.key === 'N') {
+      if ((e.key === 'n' || e.key === 'N')) {
         e.preventDefault();
         openModal('task-form');
       }
-
-      // ESC键关闭当前弹窗（如果有）
-      if (e.key === 'Escape') {
-        // 这个逻辑已经在 Modal 组件中处理
-      }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [openModal]);
+
+  // 正在初始化 —— 不渲染任何内容，避免闪烁
+  if (loading) {
+    return (
+      <div className="boot-screen" aria-label="加载中">
+        <div className="boot-screen__spinner" />
+      </div>
+    );
+  }
+
+  // 未登录 —— 只显示登录页
+  if (!userId) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="app-shell">
@@ -83,6 +102,15 @@ export default function App() {
               </button>
             ))}
           </nav>
+
+          <button
+            type="button"
+            className="top-nav__signout"
+            onClick={() => signOut()}
+            title="退出登录"
+          >
+            退出
+          </button>
         </div>
       </header>
 
