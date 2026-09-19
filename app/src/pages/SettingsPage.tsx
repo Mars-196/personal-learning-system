@@ -1,4 +1,4 @@
-﻿/* ============================================================
+﻿﻿﻿﻿﻿﻿/* ============================================================
    设置页面：数据备份与安全说明
    - 导出全部数据为 JSON 文件（防丢失）
    - 导入 JSON 备份（合并 / 覆盖两种模式）
@@ -232,7 +232,7 @@ export function SettingsPage() {
             <li><strong>阶段</strong><span>{stages.length} 个</span></li>
             <li><strong>笔记</strong><span>{reflections.length} 条</span></li>
             <li><strong>模板</strong><span>{templates.length} 个</span></li>
-            <li><strong>存储位置</strong><span>浏览器 IndexedDB（本地）</span></li>
+            <li><strong>存储位置</strong><span>Supabase 云端（PostgreSQL）</span></li>
           </ul>
         </div>
 
@@ -446,23 +446,24 @@ export function SettingsPage() {
         <div className="card card--pad">
           <div className="card-title">🔒 数据存储说明</div>
           <ul className="info-list">
-            <li><strong>存储方式</strong><span>数据保存在当前浏览器的 IndexedDB 中</span></li>
-            <li><strong>访问隔离</strong><span>IndexedDB 按域名隔离，其他网站无法读取</span></li>
-            <li><strong>数据风险</strong><span>清除浏览器数据会导致本地数据丢失，请定期导出备份</span></li>
+            <li><strong>存储方式</strong><span>数据存于 Supabase 云端 PostgreSQL 数据库</span></li>
+            <li><strong>访问隔离</strong><span>通过登录账号 + RLS 行级安全，每个用户只能看到自己的数据</span></li>
+            <li><strong>跨设备同步</strong><span>同一账号登录任意设备即可自动同步</span></li>
+            <li><strong>数据风险</strong><span>免费档 500MB 额度；删除账号后数据会被清除</span></li>
             <li><strong>输入安全</strong><span>所有输入内容经 React 自动转义，不会被当作代码执行</span></li>
           </ul>
         </div>
 
-        {/* 后端接入说明 */}
+        {/* 备份说明 */}
         <div className="card card--pad">
-          <div className="card-title">🔌 后期接入后端</div>
+          <div className="card-title">📦 备份与迁移</div>
           <p className="text-sm text-muted" style={{ marginBottom: 12 }}>
-            项目已预留 service 抽象层，接入后端时业务代码无需改动：
+            服务层已做抽象，底层存储可一键切换：
           </p>
           <ol className="info-list" style={{ listStyle: 'decimal', paddingLeft: 18 }}>
-            <li>在 <code>src/services/storage/api.ts</code> 中补全后端接口地址</li>
-            <li>在 <code>.env</code> 中配置 <code>VITE_API_BASE_URL</code></li>
-            <li>把 <code>src/services/index.ts</code> 的实现从 <code>indexedDB*</code> 换成 <code>api*</code></li>
+            <li>在 <code>src/services/index.ts</code> 切换 service 实现</li>
+            <li>当前：<code>supabase*</code>（云端）</li>
+            <li>回退：注释掉 supabase，取消注释 <code>indexedDB*</code></li>
             <li>页面与 store 层代码无需任何修改</li>
           </ol>
         </div>
