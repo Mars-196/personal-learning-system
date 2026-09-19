@@ -2,6 +2,11 @@
    Service 的 Supabase 实现
    直接调用 @supabase/supabase-js，避开 PostgREST REST 模板。
    所有写操作自动注入 user_id；RLS 在数据库层二次确认。
+
+   本地内存缓存层：stale-while-revalidate 策略
+   - getAll / getById 先返回缓存，后台静默刷新
+   - 写操作后自动 invalidate 对应表缓存
+   - 过滤查询（getByDate / getByCategory）从 getAll 缓存前端 filter
    ============================================================ */
 
 import { supabase, currentUserIdSync } from '../../lib/supabaseClient';
@@ -18,7 +23,83 @@ import type {
 const uid = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
-/** 统一把 Supabase 返回的行转成 TS 类型，并处理 relatedTaskIds jsonb ↔ array */
+/* ============================================================
+   本地内存缓存（stale-while-revalidate）
+   ============================================================ */
+
+/** TTL：缓存 30 秒内视为新鲜，超过则先返回旧值再后台刷新 */
+const CACHE_TTL = 30_000;
+
+interface CacheEntry<T> {
+  data: T;
+  ts: number;
+  fetching?: Promise<T>; // 正在刷新中，后续请求复用同一个 Promise
+}
+
+/** 简单内存缓存：按 key 存值 + 过期时间 + invalidate */
+class TableCache<T> {
+  private map = new Map<string, CacheEntry<T>>();
+
+  /** 先返回缓存（若有），同时后台 fetch 最新数据刷新缓存 */
+  async getOrFetch(key: string, fetcher: () => Promise<T>): Promise<T> {
+    const now = Date.now();
+    const entry = this.map.get(key);
+
+    // 缓存新鲜：直接返回
+    if (entry && now - entry.ts < CACHE_TTL) {
+      // 过期前 5 秒内触发后台刷新（不阻塞当前返回）
+      if (now - entry.ts > CACHE_TTL - 5000 && !entry.fetching) {
+        entry.fetching = fetcher().then((data) => {
+          this.map.set(key, { data, ts: Date.now() });
+          return data;
+        }).catch(() => null as unknown as T);
+      }
+      return entry.data;
+    }
+
+    // 正在刷新：等待那个 Promise
+    if (entry?.fetching) return entry.fetching;
+
+    // 没有缓存或已过期：发起请求
+    const fetchPromise = fetcher().then((data) => {
+      this.map.set(key, { data, ts: Date.now() });
+      return data;
+    });
+    // 先存一个占位，避免并发请求
+    this.map.set(key, { data: entry?.data ?? (null as unknown as T), ts: 0, fetching: fetchPromise });
+    try {
+      return await fetchPromise;
+    } catch (e) {
+      // 请求失败：如果有旧缓存则降级返回旧值
+      if (entry) {
+        this.map.set(key, { data: entry.data, ts: Date.now() });
+        return entry.data;
+      }
+      throw e;
+    }
+  }
+
+  /** 强制刷新（写操作后调用） */
+  invalidate(key?: string) {
+    if (key === undefined) {
+      this.map.clear();
+    } else {
+      this.map.delete(key);
+    }
+  }
+}
+
+// 5 张表各一个缓存实例
+const cacheTasks = new TableCache<Task[]>();
+const cacheStages = new TableCache<Stage[]>();
+const cacheReflections = new TableCache<Reflection[]>();
+const cacheTemplates = new TableCache<NoteTemplate[]>();
+const cacheNotifications = new TableCache<NotificationReminder[]>();
+
+/* ============================================================
+   数据转换工具
+   ============================================================ */
+
 function rowToReflection(row: Record<string, unknown>): Reflection {
   const raw = row as Partial<Reflection> & { relatedTaskIds: unknown };
   let ids: string[] = [];
@@ -39,13 +120,11 @@ function rowToReflection(row: Record<string, unknown>): Reflection {
   };
 }
 
-/** Reflection → 插入 payload（relatedTaskIds 转成数组让 PostgREST 正确处理 jsonb） */
 function reflectionPayload(r: ReflectionInput) {
   const { relatedTaskIds, ...rest } = r;
   return { ...rest, relatedTaskIds: relatedTaskIds ?? [] };
 }
 
-/** PostgREST 通用错误提取 */
 function check<T>(result: { data: T | null; error: unknown }): T {
   if (result.error) {
     const e = result.error as { message?: string; code?: string };
@@ -55,23 +134,27 @@ function check<T>(result: { data: T | null; error: unknown }): T {
   return result.data;
 }
 
-/* ------------------------------------------------------------ */
-/* Task                                                          */
-/* ------------------------------------------------------------ */
+/* ============================================================
+   Task
+   ============================================================ */
 
 function coversDate(task: Task, date: string): boolean {
   return task.startDate <= date && task.endDate >= date;
 }
 
+const fetchAllTasks = async (): Promise<Task[]> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .order('priority', { ascending: true })
+    .order('updatedAt', { ascending: false });
+  if (error) throw new Error(`Supabase tasks: ${error.message}`);
+  return (data ?? []) as Task[];
+};
+
 export const supabaseTaskService: TaskService = {
   async getAll(query: TaskQuery = {}) {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('priority', { ascending: true })
-      .order('updatedAt', { ascending: false });
-    if (error) throw new Error(`Supabase tasks: ${error.message}`);
-    let tasks = (data ?? []) as Task[];
+    let tasks = await cacheTasks.getOrFetch('all', fetchAllTasks);
 
     if (query.date)    tasks = tasks.filter((t) => coversDate(t, query.date!));
     if (query.category) tasks = tasks.filter((t) => t.category === query.category);
@@ -87,8 +170,8 @@ export const supabaseTaskService: TaskService = {
   },
 
   async getById(id) {
-    const { data } = await supabase.from('tasks').select('*').eq('id', id).maybeSingle();
-    return data as Task | null ?? undefined;
+    const all = await cacheTasks.getOrFetch('all', fetchAllTasks);
+    return all.find((t) => t.id === id);
   },
 
   async create(input: TaskInput) {
@@ -102,6 +185,7 @@ export const supabaseTaskService: TaskService = {
       user_id: currentUserIdSync(),
     };
     const data = check<Task[]>(await supabase.from('tasks').insert(row).select());
+    cacheTasks.invalidate();
     return data[0];
   },
 
@@ -111,11 +195,13 @@ export const supabaseTaskService: TaskService = {
     const data = check<Task[]>(
       await supabase.from('tasks').update(payload).eq('id', id).select(),
     );
+    cacheTasks.invalidate();
     return data[0];
   },
 
   async toggleDone(id) {
-    const existing = await this.getById(id);
+    const all = await cacheTasks.getOrFetch('all', fetchAllTasks);
+    const existing = all.find((t) => t.id === id);
     if (!existing) return undefined;
     const now = Date.now();
     const patch = {
@@ -126,38 +212,45 @@ export const supabaseTaskService: TaskService = {
     const data = check<Task[]>(
       await supabase.from('tasks').update(patch).eq('id', id).select(),
     );
+    cacheTasks.invalidate();
     return data[0];
   },
 
   async remove(id) {
     const { error } = await supabase.from('tasks').delete().eq('id', id);
     if (error) throw new Error(`Supabase tasks delete: ${error.message}`);
+    cacheTasks.invalidate();
   },
 
   async clear() {
     const { error } = await supabase.from('tasks').delete().neq('id', '');
     if (error) throw new Error(`Supabase tasks clear: ${error.message}`);
+    cacheTasks.invalidate();
   },
 };
 
-/* ------------------------------------------------------------ */
-/* Stage                                                         */
-/* ------------------------------------------------------------ */
+/* ============================================================
+   Stage
+   ============================================================ */
+
+const fetchAllStages = async (): Promise<Stage[]> => {
+  const { data, error } = await supabase
+    .from('stages')
+    .select('*')
+    .order('priority', { ascending: true })
+    .order('startDate', { ascending: true });
+  if (error) throw new Error(`Supabase stages: ${error.message}`);
+  return (data ?? []) as Stage[];
+};
 
 export const supabaseStageService: StageService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('stages')
-      .select('*')
-      .order('priority', { ascending: true })
-      .order('startDate', { ascending: true });
-    if (error) throw new Error(`Supabase stages: ${error.message}`);
-    return (data ?? []) as Stage[];
+    return cacheStages.getOrFetch('all', fetchAllStages);
   },
 
   async getById(id) {
-    const { data } = await supabase.from('stages').select('*').eq('id', id).maybeSingle();
-    return data as Stage | null ?? undefined;
+    const all = await cacheStages.getOrFetch('all', fetchAllStages);
+    return all.find((s) => s.id === id);
   },
 
   async create(input: StageInput) {
@@ -170,6 +263,7 @@ export const supabaseStageService: StageService = {
       user_id: currentUserIdSync(),
     };
     const data = check<Stage[]>(await supabase.from('stages').insert(row).select());
+    cacheStages.invalidate();
     return data[0];
   },
 
@@ -179,12 +273,13 @@ export const supabaseStageService: StageService = {
     const data = check<Stage[]>(
       await supabase.from('stages').update(payload).eq('id', id).select(),
     );
+    cacheStages.invalidate();
     return data[0];
   },
 
   async remove(id) {
-    // 级联删除子阶段（递归查找）
-    const all = await this.getAll();
+    // 级联删除子阶段
+    const all = await cacheStages.getOrFetch('all', fetchAllStages);
     const toDelete = new Set<string>([id]);
     let changed = true;
     while (changed) {
@@ -196,7 +291,6 @@ export const supabaseStageService: StageService = {
         }
       }
     }
-    // 逐个删除（避免 RLS 批量条件下误匹配）
     for (const sid of toDelete) {
       await supabase.from('stages').delete().eq('id', sid);
     }
@@ -211,55 +305,44 @@ export const supabaseStageService: StageService = {
         .update({ stageId: '', updatedAt: Date.now() })
         .in('id', affected.map((a: { id: string }) => a.id));
     }
+    cacheStages.invalidate();
+    cacheTasks.invalidate(); // 任务也被修改了
   },
 
   async clear() {
     const { error } = await supabase.from('stages').delete().neq('id', '');
     if (error) throw new Error(`Supabase stages clear: ${error.message}`);
+    cacheStages.invalidate();
   },
 };
 
-/* ------------------------------------------------------------ */
-/* Reflection                                                    */
-/* ------------------------------------------------------------ */
+/* ============================================================
+   Reflection
+   ============================================================ */
+
+const fetchAllReflections = async (): Promise<Reflection[]> => {
+  const { data, error } = await supabase
+    .from('reflections')
+    .select('*')
+    .order('date', { ascending: false });
+  if (error) throw new Error(`Supabase reflections: ${error.message}`);
+  return (data ?? []).map(rowToReflection);
+};
 
 export const supabaseReflectionService: ReflectionService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('reflections')
-      .select('*')
-      .order('date', { ascending: false });
-    if (error) throw new Error(`Supabase reflections: ${error.message}`);
-    return (data ?? []).map(rowToReflection);
+    return cacheReflections.getOrFetch('all', fetchAllReflections);
   },
 
   async getByDate(date) {
-    const { data, error } = await supabase
-      .from('reflections')
-      .select('*')
-      .eq('date', date)
-      .order('updatedAt', { ascending: false });
-    if (error) throw new Error(`Supabase reflections by date: ${error.message}`);
-    return (data ?? []).map(rowToReflection);
+    const all = await cacheReflections.getOrFetch('all', fetchAllReflections);
+    return all.filter((r) => r.date === date);
   },
 
   async getByCategory(category) {
-    // category === '' 代表未分类
-    if (category === '') {
-      const { data, error } = await supabase
-        .from('reflections')
-        .select('*');
-      if (error) throw new Error(`Supabase reflections by category: ${error.message}`);
-      return (data ?? [])
-        .map(rowToReflection)
-        .filter((r) => !r.category);
-    }
-    const { data, error } = await supabase
-      .from('reflections')
-      .select('*')
-      .eq('category', category);
-    if (error) throw new Error(`Supabase reflections by category: ${error.message}`);
-    return (data ?? []).map(rowToReflection);
+    const all = await cacheReflections.getOrFetch('all', fetchAllReflections);
+    if (category === '') return all.filter((r) => !r.category);
+    return all.filter((r) => r.category === category);
   },
 
   async create(input: ReflectionInput) {
@@ -274,6 +357,7 @@ export const supabaseReflectionService: ReflectionService = {
     const data = check<Record<string, unknown>[]>(
       await supabase.from('reflections').insert(row).select(),
     );
+    cacheReflections.invalidate();
     return rowToReflection(data[0]);
   },
 
@@ -286,46 +370,45 @@ export const supabaseReflectionService: ReflectionService = {
     const data = check<Record<string, unknown>[]>(
       await supabase.from('reflections').update(updateObj).eq('id', id).select(),
     );
+    cacheReflections.invalidate();
     return rowToReflection(data[0]);
   },
 
   async remove(id) {
     const { error } = await supabase.from('reflections').delete().eq('id', id);
     if (error) throw new Error(`Supabase reflections delete: ${error.message}`);
+    cacheReflections.invalidate();
   },
 
   async clear() {
     const { error } = await supabase.from('reflections').delete().neq('id', '');
     if (error) throw new Error(`Supabase reflections clear: ${error.message}`);
+    cacheReflections.invalidate();
   },
 };
 
-/* ------------------------------------------------------------ */
-/* NoteTemplate                                                  */
-/* ------------------------------------------------------------ */
+/* ============================================================
+   NoteTemplate
+   ============================================================ */
+
+const fetchAllTemplates = async (): Promise<NoteTemplate[]> => {
+  const { data, error } = await supabase
+    .from('templates')
+    .select('*')
+    .order('updatedAt', { ascending: false });
+  if (error) throw new Error(`Supabase templates: ${error.message}`);
+  return (data ?? []) as NoteTemplate[];
+};
 
 export const supabaseTemplateService: TemplateService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('templates')
-      .select('*')
-      .order('updatedAt', { ascending: false });
-    if (error) throw new Error(`Supabase templates: ${error.message}`);
-    return (data ?? []) as NoteTemplate[];
+    return cacheTemplates.getOrFetch('all', fetchAllTemplates);
   },
 
   async getByCategory(category) {
-    if (category === '') {
-      const { data, error } = await supabase.from('templates').select('*');
-      if (error) throw new Error(`Supabase templates by category: ${error.message}`);
-      return (data ?? []).filter((t: NoteTemplate) => !t.category);
-    }
-    const { data, error } = await supabase
-      .from('templates')
-      .select('*')
-      .eq('category', category);
-    if (error) throw new Error(`Supabase templates by category: ${error.message}`);
-    return (data ?? []) as NoteTemplate[];
+    const all = await cacheTemplates.getOrFetch('all', fetchAllTemplates);
+    if (category === '') return all.filter((t) => !t.category);
+    return all.filter((t) => t.category === category);
   },
 
   async create(input: NoteTemplateInput) {
@@ -340,6 +423,7 @@ export const supabaseTemplateService: TemplateService = {
     const data = check<NoteTemplate[]>(
       await supabase.from('templates').insert(row).select(),
     );
+    cacheTemplates.invalidate();
     return data[0];
   },
 
@@ -349,33 +433,36 @@ export const supabaseTemplateService: TemplateService = {
     const data = check<NoteTemplate[]>(
       await supabase.from('templates').update(payload).eq('id', id).select(),
     );
+    cacheTemplates.invalidate();
     return data[0];
   },
 
   async remove(id) {
     const { error } = await supabase.from('templates').delete().eq('id', id);
     if (error) throw new Error(`Supabase templates delete: ${error.message}`);
+    cacheTemplates.invalidate();
   },
 
   async clear() {
     const { error } = await supabase.from('templates').delete().neq('id', '');
     if (error) throw new Error(`Supabase templates clear: ${error.message}`);
+    cacheTemplates.invalidate();
   },
 };
 
-/* ------------------------------------------------------------ */
-/* Backup                                                        */
-/* ------------------------------------------------------------ */
+/* ============================================================
+   Backup
+   ============================================================ */
 
 export const supabaseBackupService: BackupService = {
   async exportAll(): Promise<BackupData> {
+    // 导出需要最新数据，跳过缓存直接 fetch
     const [tasks, stages, reflections, templates] = await Promise.all([
       supabase.from('tasks').select('*'),
       supabase.from('stages').select('*'),
       supabase.from('reflections').select('*'),
       supabase.from('templates').select('*'),
     ]);
-    // 剥掉 user_id 再导出（导入时会自动补）
     const stripUser = <T>(rows: Record<string, unknown>[] | null | undefined): T[] =>
       (rows ?? []).map(({ user_id, ...rest }) => rest as unknown as T);
     return {
@@ -394,7 +481,6 @@ export const supabaseBackupService: BackupService = {
     const stamp = Date.now();
 
     if (mode === 'replace') {
-      // 清空 → 批量插入（upsert 按 id 冲突）
       await Promise.all([
         supabase.from('tasks').delete().neq('id', ''),
         supabase.from('stages').delete().neq('id', ''),
@@ -426,60 +512,69 @@ export const supabaseBackupService: BackupService = {
           tpls.map((t) => ({ ...t, user_id: userId, updatedAt: t.updatedAt ?? stamp })),
         );
       }
-      return {
-        tasks: data.tasks?.length ?? 0,
-        stages: data.stages?.length ?? 0,
-        reflections: data.reflections?.length ?? 0,
-      };
+    } else {
+      let taskCount = 0, stageCount = 0, reflCount = 0;
+      for (const t of data.tasks ?? []) {
+        const { error } = await supabase
+          .from('tasks')
+          .upsert({ ...t, user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
+        if (!error) taskCount++;
+      }
+      for (const s of data.stages ?? []) {
+        const { error } = await supabase
+          .from('stages')
+          .upsert({ ...s, user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
+        if (!error) stageCount++;
+      }
+      for (const r of data.reflections ?? []) {
+        const { error } = await supabase
+          .from('reflections')
+          .upsert({ ...reflectionPayload(r), user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
+        if (!error) reflCount++;
+      }
+      const tpls = (data as BackupData & { templates?: NoteTemplate[] }).templates ?? [];
+      for (const tpl of tpls) {
+        await supabase
+          .from('templates')
+          .upsert({ ...tpl, user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
+      }
     }
 
-    // merge：逐条 upsert（冲突跳过）
-    let taskCount = 0, stageCount = 0, reflCount = 0;
-    for (const t of data.tasks ?? []) {
-      const { error } = await supabase
-        .from('tasks')
-        .upsert({ ...t, user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
-      if (!error) taskCount++;
-    }
-    for (const s of data.stages ?? []) {
-      const { error } = await supabase
-        .from('stages')
-        .upsert({ ...s, user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
-      if (!error) stageCount++;
-    }
-    for (const r of data.reflections ?? []) {
-      const { error } = await supabase
-        .from('reflections')
-        .upsert({ ...reflectionPayload(r), user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
-      if (!error) reflCount++;
-    }
-    const tpls = (data as BackupData & { templates?: NoteTemplate[] }).templates ?? [];
-    for (const tpl of tpls) {
-      await supabase
-        .from('templates')
-        .upsert({ ...tpl, user_id: userId }, { onConflict: 'id', ignoreDuplicates: true });
-    }
-    return { tasks: taskCount, stages: stageCount, reflections: reflCount };
+    // 导入后清空所有缓存
+    cacheTasks.invalidate();
+    cacheStages.invalidate();
+    cacheReflections.invalidate();
+    cacheTemplates.invalidate();
+
+    return {
+      tasks: data.tasks?.length ?? 0,
+      stages: data.stages?.length ?? 0,
+      reflections: data.reflections?.length ?? 0,
+    };
   },
 };
 
-/* ------------------------------------------------------------ */
-/* Notification                                                 */
-/* ------------------------------------------------------------ */
+/* ============================================================
+   Notification
+   ============================================================ */
+
+const fetchAllNotifications = async (): Promise<NotificationReminder[]> => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('reminderTime', { ascending: true });
+  if (error) throw new Error(`Supabase notifications: ${error.message}`);
+  return (data ?? []) as NotificationReminder[];
+};
 
 export const supabaseNotificationService: NotificationService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('reminderTime', { ascending: true });
-    if (error) throw new Error(`Supabase notifications: ${error.message}`);
-    return (data ?? []) as NotificationReminder[];
+    return cacheNotifications.getOrFetch('all', fetchAllNotifications);
   },
 
   async getById(id) {
-    const { data } = await supabase.from('notifications').select('*').eq('id', id).maybeSingle();
-    return data as NotificationReminder | null ?? undefined;
+    const all = await cacheNotifications.getOrFetch('all', fetchAllNotifications);
+    return all.find((n) => n.id === id);
   },
 
   async create(input: NotificationReminderInput) {
@@ -494,6 +589,7 @@ export const supabaseNotificationService: NotificationService = {
     const data = check<NotificationReminder[]>(
       await supabase.from('notifications').insert(row).select(),
     );
+    cacheNotifications.invalidate();
     return data[0];
   },
 
@@ -501,23 +597,20 @@ export const supabaseNotificationService: NotificationService = {
     const data = check<NotificationReminder[]>(
       await supabase.from('notifications').update(patch).eq('id', id).select(),
     );
+    cacheNotifications.invalidate();
     return data[0];
   },
 
   async remove(id) {
     const { error } = await supabase.from('notifications').delete().eq('id', id);
     if (error) throw new Error(`Supabase notifications delete: ${error.message}`);
+    cacheNotifications.invalidate();
   },
 
   async getPending() {
+    const all = await cacheNotifications.getOrFetch('all', fetchAllNotifications);
     const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('sent', false)
-      .lte('reminderTime', now);
-    if (error) throw new Error(`Supabase notifications pending: ${error.message}`);
-    return (data ?? []) as NotificationReminder[];
+    return all.filter((n) => !n.sent && n.reminderTime <= now);
   },
 
   async markAsSent(id) {
@@ -526,10 +619,12 @@ export const supabaseNotificationService: NotificationService = {
       .update({ sent: true })
       .eq('id', id);
     if (error) throw new Error(`Supabase notifications mark-sent: ${error.message}`);
+    cacheNotifications.invalidate();
   },
 
   async clear() {
     const { error } = await supabase.from('notifications').delete().neq('id', '');
     if (error) throw new Error(`Supabase notifications clear: ${error.message}`);
+    cacheNotifications.invalidate();
   },
 };
