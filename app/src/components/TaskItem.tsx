@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    任务列表项
    ============================================================ */
 
@@ -43,7 +43,10 @@ export function TaskItem({
       <button
         type="button"
         className={`task-item__check${done ? ' is-checked' : ''}`}
-        onClick={() => onToggle(task.id)}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          onToggle(task.id);
+        }}
         aria-label={done ? `标记「${task.title}」为未完成` : `标记「${task.title}」为已完成`}
         aria-pressed={done}
       >

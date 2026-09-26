@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    任务 Store（Zustand）
    组件通过本 store 读写任务，store 内部只调用 service 接口，
    不直接依赖 IndexedDB —— 后期换后端无需改动本文件。
@@ -97,12 +97,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   async toggleTask(id) {
     const task = await taskService.toggleDone(id);
 
-    // 如果任务被标记为完成，发送完成通知
+    // 如果任务被标记为完成，发送完成通知（通知失败不影响主流程）
     if (task && task.status === 'done') {
-      sendBrowserNotification('任务完成', {
-        body: `🎉 恭喜！任务「${task.title}」已完成`,
-        icon: '/icon-192.png',
-      });
+      try {
+        await sendBrowserNotification('任务完成', {
+          body: `🎉 恭喜！任务「${task.title}」已完成`,
+        });
+      } catch (e) {
+        console.warn('任务完成通知发送失败:', e);
+      }
     }
 
     await Promise.all([get().load(), get().loadAllTasks()]);

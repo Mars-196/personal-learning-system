@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    通知助手工具
    ============================================================ */
 
@@ -101,28 +101,48 @@ export function stopDailySummary() {
 
 /**
  * 发送浏览器通知
+ * 兼容 PWA 环境：移动端禁用 new Notification()，需用 ServiceWorkerRegistration.showNotification()
  */
-export function sendBrowserNotification(title: string, options: NotificationOptions = {}) {
-  if (!('Notification' in window)) {
-    console.warn('浏览器不支持通知功能');
-    return;
-  }
-
-  if (Notification.permission === 'granted') {
-    new Notification(title, {
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      ...options,
-    });
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then((permission) => {
-      if (permission === 'granted') {
-        new Notification(title, {
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
+export async function sendBrowserNotification(title: string, options: NotificationOptions = {}) {
+  try {
+    // PWA / 移动端：优先用 Service Worker 显示通知
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.showNotification(title, {
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
           ...options,
         });
+        return;
       }
-    });
+    }
+
+    // 桌面端回退：用 Notification 构造函数
+    if (!('Notification' in window)) {
+      console.warn('浏览器不支持通知功能');
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      new Notification(title, {
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        ...options,
+      });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+          new Notification(title, {
+            icon: '/favicon.svg',
+            badge: '/favicon.svg',
+            ...options,
+          });
+        }
+      });
+    }
+  } catch (e) {
+    // 通知失败不影响主流程
+    console.warn('发送通知失败:', e);
   }
 }
