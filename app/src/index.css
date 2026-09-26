@@ -99,7 +99,7 @@ body::before {
 }
 
 #root { min-height: 100vh; position: relative; z-index: 1; }
-button, input, select, textarea { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; touch-action: manipulation; }
 button { cursor: pointer; border: none; background: none; }
 ul, ol { list-style: none; }
 a { color: var(--c-primary); text-decoration: none; }
@@ -517,7 +517,9 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   padding: 0;
 }
-.task-item__check:hover { border-color: var(--c-primary); transform: scale(1.1); }
+@media (hover: hover) {
+  .task-item__check:hover { border-color: var(--c-primary); transform: scale(1.1); }
+}
 .task-item__check.is-checked {
   background: var(--c-gradient);
   border-color: transparent;
