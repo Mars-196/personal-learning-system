@@ -1886,3 +1886,17 @@ a:hover { text-decoration: underline; }
   background: rgba(239, 68, 68, .06);
   border-color: rgba(239, 68, 68, .2);
 }
+
+/* ============ 触屏设备适配 ============ */
+/* 触屏设备禁用 :hover 的 transform，防止元素位移导致触点偏离、click 不触发 */
+@media (pointer: coarse) {
+  *:hover {
+    transform: none !important;
+  }
+  /* 禁用长按选中，减少误触 */
+  button, .icon-btn, .filter-chip, .task-item__check {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
